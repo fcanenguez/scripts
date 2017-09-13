@@ -1,0 +1,111 @@
+#!/bin/bash
+#set -x
+
+if [ -s $HOME/.dfc.conf ]; then
+   . $HOME/.dfc.conf
+else
+   # Color for header
+   HEADER_COLOR="yellow"
+   #
+   # Color for local filesystems
+   LOCAL_FS_COLOR=""
+   #
+   # Color for remote filesystems
+   REMOTE_FS_COLOR="magenta"
+   #
+   # Color for special filesystems (ISO)
+   SPECIAL_FS_COLOR="cyan"
+   #
+   # Color for other filesystmes
+   OTHER_COLOR=""
+fi
+   
+# BASH color codes
+NORMAL="\e[39m"
+RED="\e[91m"
+BLUE="\e[94m"
+GREEN="\e[92m"
+MAGENTA="\e[95m"
+YELLOW="\e[93m"
+CYAN="\e[96m"
+WHITE="\e[97m"
+RESET="\e[0m"
+
+# Determining filesystem types
+LOCAL="VGroot|rootVG|rootvg|sd[a-z][1-9]|^proc|^sysfs|^devpts|^tmpfs|^sunrpc|^none|^nfsd"
+REMOTE="nfs|cifs"
+SPECIALFS="iso9660 "
+HEADER="Filesystem"
+OPTS="$*"
+
+# Parsing configuration colors and color selection
+
+case $HEADER_COLOR in
+   [Rr][Ee][Dd])                   HEAD_SEL_COLOR=$RED ;;
+   [Bb][Ll][Uu][Ee])               HEAD_SEL_COLOR=$BLUE ;;
+   [Gg][Rr][Ee][Ee][Nn])           HEAD_SEL_COLOR=$GREEN ;;
+   [Mm][Aa][Gg][Ee][Nn][Tt][Aa])   HEAD_SEL_COLOR=$MAGENTA ;;
+   [Yy][Ee][Ll][Ll][Oo][Ww])       HEAD_SEL_COLOR=$YELLOW ;;
+   [Cc][Yy][Aa][Nn])               HEAD_SEL_COLOR=$CYAN ;;
+   [Ww][Hh][Ii][Tt][Ee])           HEAD_SEL_COLOR=$WHITE ;;
+   *)                              HEAD_SEL_COLOR=$NORMAL ;;
+esac
+
+case $LOCAL_FS_COLOR in
+   [Rr][Ee][Dd])                   LFS_SEL_COLOR=$RED ;;
+   [Bb][Ll][Uu][Ee])               LFS_SEL_COLOR=$BLUE ;;
+   [Gg][Rr][Ee][Ee][Nn])           LFS_SEL_COLOR=$GREEN ;;
+   [Mm][Aa][Gg][Ee][Nn][Tt][Aa])   LFS_SEL_COLOR=$MAGENTA ;;
+   [Yy][Ee][Ll][Ll][Oo][Ww])       LFS_SEL_COLOR=$YELLOW ;;
+   [Cc][Yy][Aa][Nn])               LFS_SEL_COLOR=$CYAN ;;
+   [Ww][Hh][Ii][Tt][Ee])           LFS_SEL_COLOR=$WHITE ;;
+   *)                              LFS_SEL_COLOR=$NORMAL ;;
+esac
+
+case $REMOTE_FS_COLOR in
+   [Rr][Ee][Dd])                   RFS_SEL_COLOR=$RED ;;
+   [Bb][Ll][Uu][Ee])               RFS_SEL_COLOR=$BLUE ;;
+   [Gg][Rr][Ee][Ee][Nn])           RFS_SEL_COLOR=$GREEN ;;
+   [Mm][Aa][Gg][Ee][Nn][Tt][Aa])   RFS_SEL_COLOR=$MAGENTA ;;
+   [Yy][Ee][Ll][Ll][Oo][Ww])       RFS_SEL_COLOR=$YELLOW ;;
+   [Cc][Yy][Aa][Nn])               RFS_SEL_COLOR=$CYAN ;;
+   [Ww][Hh][Ii][Tt][Ee])           RFS_SEL_COLOR=$WHITE ;;
+   *)                              RFS_SEL_COLOR=$NORMAL ;;
+esac
+
+case $SPECIAL_FS_COLOR in
+   [Rr][Ee][Dd])                   SFS_SEL_COLOR=$RED ;;
+   [Bb][Ll][Uu][Ee])               SFS_SEL_COLOR=$BLUE ;;
+   [Gg][Rr][Ee][Ee][Nn])           SFS_SEL_COLOR=$GREEN ;;
+   [Mm][Aa][Gg][Ee][Nn][Tt][Aa])   SFS_SEL_COLOR=$MAGENTA ;;
+   [Yy][Ee][Ll][Ll][Oo][Ww])       SFS_SEL_COLOR=$YELLOW ;;
+   [Cc][Yy][Aa][Nn])               SFS_SEL_COLOR=$CYAN ;;
+   [Ww][Hh][Ii][Tt][Ee])           SFS_SEL_COLOR=$WHITE ;;
+   *)                              SFS_SEL_COLOR=$NORMAL ;;
+esac
+
+case $OTHER_COLOR in
+   [Rr][Ee][Dd])                   OTH_SEL_COLOR=$RED ;;
+   [Bb][Ll][Uu][Ee])               OTH_SEL_COLOR=$BLUE ;;
+   [Gg][Rr][Ee][Ee][Nn])           OTH_SEL_COLOR=$GREEN ;;
+   [Mm][Aa][Gg][Ee][Nn][Tt[Aa])    OTH_SEL_COLOR=$MAGENTA ;;
+   [Yy][Ee][Ll][Ll][Oo][Ww])       OTH_SEL_COLOR=$YELLOW ;;
+   [Cc][Yy][Aa][Nn])               OTH_SEL_COLOR=$CYAN ;;
+   [Ww][Hh][Ii][Tt][Ee])           OTH_SEL_COLOR=$WHITE ;;
+   *)                              OTH_SEL_COLOR=$NORMAL ;;
+esac
+# The actual process of generating color output
+while read LINE; do
+   if echo $LINE | grep -qE "$LOCAL"; then
+      echo -e "${LFS_SEL_COLOR}${LINE}${RESET}"
+   elif echo $LINE | grep -qE "$HEADER"; then
+      echo -e "${HEAD_SEL_COLOR}${LINE}${RESET}"
+   elif echo $LINE | grep -qE "$REMOTE"; then
+      echo -e "${RFS_SEL_COLOR}${LINE}${RESET}"
+   elif echo $LINE | grep -qE "$SPECIALFS"; then
+      echo -e "${SFS_SEL_COLOR}${LINE}${RESET}"
+   else
+      echo -e "${OTH_SEL_COLOR}${LINE}${RESET}"
+   fi
+done < <(df -PT $OPTS)
+#set +x
