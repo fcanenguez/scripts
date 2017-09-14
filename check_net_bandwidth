@@ -1,0 +1,86 @@
+#!/bin/ksh
+
+STATINFO=""
+PERFDATA=""
+SADIR=/var/log/sa
+W=80   # Warning threshold is 80% of max speed
+C=90   # Cricial threshold is 90% of max speed
+
+# Determine which network interface to use.
+
+/sbin/ip link | grep -q "bond0:"
+if [ "$?" = 0 ]; then
+   DEVS=$(cat /proc/net/bonding/bond0 | grep "Slave Interface:" | /usr/local/bin/cols 3)
+else
+   DEVS="eth0"
+fi
+
+# Determining if data file is available.
+
+DAY=$(date "+%d")
+
+if [ ! -f $SADIR/sa$DAY ]; then
+   echo "OK - No data available"
+   exit 0
+fi
+
+while [ "${1:0:1}" = "-" ]; do
+   case $1 in
+      "-w")
+             shift; W=$1; shift ;;
+      "-c")
+             shift; C=$1; shift ;;
+      "-i")
+             shift
+             /sbin/ip link | grep -q "$1"
+             if [ $? = 0 ]; then
+                cat /sys/class/net/$1/speed > /dev/null 2>&1
+                if [ $? = 0 ]; then
+                   DEVS=$1
+                else
+                   DEVS=""
+                   STATINFO="No speed information found for $1"
+                fi
+             else
+                DEVS=""
+                STATINFO="Interface $1 not found"
+             fi
+             shift
+             ;;
+   esac
+done
+
+for IFACE in $DEVS; do
+   /usr/bin/sadf -d -t $SADIR/sa$DAY -- -n DEV | grep "$IFACE" | tail -1 | awk -F ";" '{print $7,$8}' | read RX TX
+   MAXRATE=$(cat /sys/class/net/$IFACE/speed)
+   WARNRATE=$(echo "scale=2;$MAXRATE * ($W/100)" | bc)   
+   CRITRATE=$(echo "scale=2;$MAXRATE * ($C/100)" | bc)   
+   RXRATE=$(echo "scale=2;$RX/125" | bc)
+   TXRATE=$(echo "scale=2;$TX/125" | bc)
+
+   if [ "$RXRATE" = "" -o "$TXRATE" = "" ]; then
+      STATINFO="Unknown speed for $IFACE"
+      RETVAL=3
+   else
+      if [ $RXRATE -gt $CRITRATE -o $TXRATE -gt $CRITRATE ]; then
+         STATINFO="$STATINFO ${IFACE}-Rx=${RXRATE}Mbps ${IFACE}-Tx=${TXRATE}Mbps;"
+         RETVAL=2
+      elif [ $RXRATE -gt $WARNRATE -o $TXRATE -gt $WARNRATE ]; then
+         STATINFO="$STATINFO ${IFACE}-Rx=${RXRATE}Mbps ${IFACE}-Tx=${TXRATE}Mbps;"
+         RETVAL=${RETVAL-1}
+      else
+         :
+      fi
+      PERFDATA="$PERFDATA ${IFACE}-Rx=${RXRATE}Mbps ${IFACE}-Tx=${TXRATE}Mbps;"
+   fi
+done
+
+RETVAL=${RETVAL-0}
+
+case $RETVAL in
+   2) echo "CRITICAL - $STATINFO|$PERFDATA" ;;
+   1) echo "WARNING - $STATINFO|$PERFDATA"  ;;
+   0) echo "OK - $PERFDATA|$PERFDATA" ;;
+   *) echo "UNKNOWN - $STATINFO|$PERFDATA"; RETVAL=3 ;;
+esac
+exit $RETVAL
