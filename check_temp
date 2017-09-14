@@ -1,0 +1,63 @@
+#!/bin/ksh
+
+/sbin/lsmod | grep -q coretemp
+if [ $? -ne 0 ]; then
+   echo "UNKNOWN - Kernel module not loaded (coretemp)"
+   exit 3
+fi
+# DISABLED # KERNEL MODULE DETERIMINES VALUES
+#WARNTEMP="70"
+#CRITTEMP="90"
+
+#while [ "${1:0:1}" = "-" ]; do
+#   case "$1" in 
+#      "-w")   shift; WARNTEMP="$1"; shift ;;
+#      "-c")   shift; CRITTEMP="$1"; shift ;;
+#         *)   exit ;;
+#   esac
+#done 
+
+LIST=$(ls -1d /sys/devices/platform/coretemp.*)
+for DIR in $LIST; do
+   CPUNUM=$(echo $DIR | sed -e 's/[^0-9]//g')
+   X=1
+   SUMTEMP=0
+   SUMWARN=0
+   SUMCRIT=0
+   for CORE in $(ls $DIR | grep "temp*" | grep -vE "temp1_|subsystem" | cut -d"_" -f1 | sort -u); do
+      CORETEMP[$X]=$(awk '{degree = $0/1000} END{print degree}' $DIR/${CORE}_input)
+      COREWARN[$X]=$(awk '{degree = $0/1000} END{print degree}' $DIR/${CORE}_max)
+      CORECRIT[$X]=$(awk '{degree = $0/1000} END{print degree}' $DIR/${CORE}_crit)
+      SUMTEMP=$(( $SUMTEMP + ${CORETEMP[$X]} ))
+      SUMWARN=$(( $SUMWARN + ${COREWARN[$X]} ))
+      SUMCRIT=$(( $SUMCRIT + ${CORECRIT[$X]} ))
+      (( X++ ))
+   done
+   AVGTEMP="$(( $SUMTEMP / ${#CORETEMP[*]} ))"
+   AVGWARN="$(( $SUMWARN / ${#COREWARN[*]} ))"
+   AVGCRIT="$(( $SUMCRIT / ${#CORECRIT[*]} ))"
+   if [ "$AVGTEMP" = "" ]; then
+      STATINFO="Unknown temperature for CPU${CPUNUM}"
+      RETVAL=3
+   else
+      if [ "$AVGTEMP" -ge "$AVGCRIT" ]; then
+         STATINFO="$STATINFO CPU${CPUNUM}-Temp=${AVGTEMP}C;"
+         RETVAL=2
+      elif [ "$AVGTEMP" -ge "$AVGWARN" ]; then
+         STATINFO="$STATINFO CPU${CPUNUM}-Temp=${AVGTEMP}C;"
+         RETVAL=${RETVAL-1}
+      else
+         :
+      fi
+      PERFDATA="$PERFDATA CPU${CPUNUM}-Temp=${AVGTEMP}C;"
+      (( X++ ))
+   fi
+done
+RETVAL=${RETVAL-0}
+case $RETVAL in
+   2) echo "CRITICAL TEMP: ${AVGCRIT}C - $STATINFO|$PERFDATA";;
+   1) echo "WARNING TEMP: ${AVGWARN}C - $STATINFO|$PERFDATA";;
+   0) echo "OK - $PERFDATA|$PERFDATA";;
+   *) echo "UNKNOWN - $STATINFO|$PERFDATA"; RETVAL=3;;
+esac
+exit $RETVAL
