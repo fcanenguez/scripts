@@ -1,0 +1,6 @@
+#!/bin/bash
+
+DIR=/sys/class/scsi_host
+for DEV in $(ls -1 $DIR); do
+   echo "- - -" > $DIR/$DEV/scan
+done
