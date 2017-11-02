@@ -1,9 +1,13 @@
 #!/bin/bash
 
 DIR=/sys/class/fc_host
+WWN=port_name
+SPEED=speed
+STATE=port_state
+
 
 echo "======================================================="
 for DEV in $(ls -1 $DIR); do
-   echo -e "Device: $DEV\n\tWWN: $(cat $DIR/$DEV/port_name)\tSpeed: $(cat $DIR/$DEV/speed)\tStatus: $(cat $DIR/$DEV/port_state)\n"
+   echo -e "Device: $DEV\n\tWWN: $(cat $DIR/$DEV/$WWN)\n\tSpeed: $(cat $DIR/$DEV/$SPEED)\n\tStatus: $(cat $DIR/$DEV/$STATE)"
    echo "======================================================="
 done
