@@ -1,0 +1,10 @@
+#!/bin/bash
+
+MAXCORE=$(/usr/bin/lscpu | awk '/^CPU\(s\)/ {print $2}')
+
+for ((x=1; x<=${MAXCORE}; x++)); do
+   while :; do
+      :
+   done &
+done
+echo ":: Started system load on ${MAXCORE} threads"
